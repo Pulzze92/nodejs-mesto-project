@@ -1,12 +1,15 @@
+import { Types } from 'mongoose';
+
 export interface IUser {
-    id: string;
-    email: string;
-    name: string;
-    createdAt: Date;
+  name: string;
+  about: string;
+  avatar: string;
 }
 
-export interface IProduct {
-    id: string;
-    name: string;
-    price: number;
+export interface ICard {
+  name: string;
+  link: string;
+  owner: Types.ObjectId;
+  likes: Types.ObjectId[];
+  createdAt: Date;
 }
