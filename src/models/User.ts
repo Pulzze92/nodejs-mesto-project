@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { IUser } from '../interfaces';
+import { IUser } from '../types';
 
 const userSchema = new mongoose.Schema<IUser>({
   name: {
@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema<IUser>({
     type: String,
     required: true,
     minlength: 2,
-    maxlength: 200,
+    maxlength: 30,
   },
   avatar: {
     type: String,

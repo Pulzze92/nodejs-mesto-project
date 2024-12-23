@@ -1,13 +1,14 @@
 import { Response } from 'express';
 import { Card } from '../models';
 import { CustomRequest } from '../types';
+import STATUS_CODES from '../utils/constants';
 
 export const getCards = async (req: CustomRequest, res: Response) => {
   try {
     const cards = await Card.find({});
-    return res.send(cards);
+    res.send(cards);
   } catch (err) {
-    return res.status(500).send({ message: 'На сервере произошла ошибка' });
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send({ message: 'На сервере произошла ошибка' });
   }
 };
 
@@ -19,12 +20,13 @@ export const createCard = async (req: CustomRequest, res: Response) => {
       link,
       owner: req.user?._id,
     });
-    return res.status(201).send(card);
-  } catch (err) {
-    if (err.name === 'ValidationError') {
-      return res.status(400).send({ message: 'Переданы некорректные данные карточки' });
+    res.status(STATUS_CODES.CREATED).send(card);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'ValidationError') {
+      res.status(STATUS_CODES.BAD_REQUEST).send({ message: 'Переданы некорректные данные при создании карточки' });
+      return;
     }
-    return res.status(500).send({ message: 'На сервере произошла ошибка' });
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send({ message: 'На сервере произошла ошибка' });
   }
 };
 
@@ -32,19 +34,21 @@ export const deleteCard = async (req: CustomRequest, res: Response) => {
   try {
     const card = await Card.findById(req.params.cardId);
     if (!card) {
-      return res.status(404).send({ message: 'Карточка не найдена' });
+      res.status(STATUS_CODES.NOT_FOUND).send({ message: 'Карточка с указанным _id не найдена' });
+      return;
     }
     await card.remove();
-    return res.send(card);
-  } catch (err) {
-    if (err.name === 'CastError') {
-      return res.status(400).send({ message: 'Передан некорректный id карточки' });
+    res.send(card);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'CastError') {
+      res.status(STATUS_CODES.BAD_REQUEST).send({ message: 'Передан некорректный id карточки' });
+      return;
     }
-    return res.status(500).send({ message: 'На сервере произошла ошибка' });
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send({ message: 'На сервере произошла ошибка' });
   }
 };
 
-export const addLike = async (req: CustomRequest, res: Response) => {
+export const likeCard = async (req: CustomRequest, res: Response) => {
   try {
     const card = await Card.findByIdAndUpdate(
       req.params.cardId,
@@ -52,18 +56,20 @@ export const addLike = async (req: CustomRequest, res: Response) => {
       { new: true },
     );
     if (!card) {
-      return res.status(404).send({ message: 'Карточка не найдена' });
+      res.status(STATUS_CODES.NOT_FOUND).send({ message: 'Передан несуществующий _id карточки' });
+      return;
     }
-    return res.send(card);
-  } catch (err) {
-    if (err.name === 'CastError') {
-      return res.status(400).send({ message: 'Передан некорректный id карточки' });
+    res.send(card);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'CastError') {
+      res.status(STATUS_CODES.BAD_REQUEST).send({ message: 'Переданы некорректные данные для постановки лайка' });
+      return;
     }
-    return res.status(500).send({ message: 'На сервере произошла ошибка' });
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send({ message: 'На сервере произошла ошибка' });
   }
 };
 
-export const removeLike = async (req: CustomRequest, res: Response) => {
+export const dislikeCard = async (req: CustomRequest, res: Response) => {
   try {
     const card = await Card.findByIdAndUpdate(
       req.params.cardId,
@@ -71,13 +77,15 @@ export const removeLike = async (req: CustomRequest, res: Response) => {
       { new: true },
     );
     if (!card) {
-      return res.status(404).send({ message: 'Карточка не найдена' });
+      res.status(STATUS_CODES.NOT_FOUND).send({ message: 'Передан несуществующий _id карточки' });
+      return;
     }
-    return res.send(card);
-  } catch (err) {
-    if (err.name === 'CastError') {
-      return res.status(400).send({ message: 'Передан некорректный id карточки' });
+    res.send(card);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'CastError') {
+      res.status(STATUS_CODES.BAD_REQUEST).send({ message: 'Переданы некорректные данные для снятия лайка' });
+      return;
     }
-    return res.status(500).send({ message: 'На сервере произошла ошибка' });
+    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send({ message: 'На сервере произошла ошибка' });
   }
 };
