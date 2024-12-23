@@ -4,6 +4,7 @@ export interface IUser {
   name: string;
   about: string;
   avatar: string;
+  _id: Types.ObjectId;
 }
 
 export interface ICard {
@@ -12,4 +13,5 @@ export interface ICard {
   owner: Types.ObjectId;
   likes: Types.ObjectId[];
   createdAt: Date;
+  _id: Types.ObjectId;
 }

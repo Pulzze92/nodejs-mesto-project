@@ -18,6 +18,14 @@ const userSchema = new mongoose.Schema<IUser>({
     type: String,
     required: true,
   },
+}, {
+  versionKey: false,
+  toJSON: {
+    transform: (_, ret) => {
+      const { __v, ...rest } = ret;
+      return rest;
+    },
+  },
 });
 
 export default mongoose.model<IUser>('user', userSchema);

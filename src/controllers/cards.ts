@@ -7,7 +7,7 @@ export const getCards = async (req: CustomRequest, res: Response) => {
     const cards = await Card.find({});
     return res.send(cards);
   } catch (err) {
-    return res.status(500).send({ message: 'Произошла ошибка при получении карточек' });
+    return res.status(500).send({ message: 'На сервере произошла ошибка' });
   }
 };
 
@@ -21,15 +21,63 @@ export const createCard = async (req: CustomRequest, res: Response) => {
     });
     return res.status(201).send(card);
   } catch (err) {
-    return res.status(500).send({ message: 'Произошла ошибка при создании карточки' });
+    if (err.name === 'ValidationError') {
+      return res.status(400).send({ message: 'Переданы некорректные данные карточки' });
+    }
+    return res.status(500).send({ message: 'На сервере произошла ошибка' });
   }
 };
 
 export const deleteCard = async (req: CustomRequest, res: Response) => {
   try {
-    const card = await Card.findByIdAndDelete(req.params.cardId);
+    const card = await Card.findById(req.params.cardId);
+    if (!card) {
+      return res.status(404).send({ message: 'Карточка не найдена' });
+    }
+    await card.remove();
     return res.send(card);
   } catch (err) {
-    return res.status(500).send({ message: 'Произошла ошибка при удалении карточки' });
+    if (err.name === 'CastError') {
+      return res.status(400).send({ message: 'Передан некорректный id карточки' });
+    }
+    return res.status(500).send({ message: 'На сервере произошла ошибка' });
+  }
+};
+
+export const addLike = async (req: CustomRequest, res: Response) => {
+  try {
+    const card = await Card.findByIdAndUpdate(
+      req.params.cardId,
+      { $addToSet: { likes: req.user?._id } },
+      { new: true },
+    );
+    if (!card) {
+      return res.status(404).send({ message: 'Карточка не найдена' });
+    }
+    return res.send(card);
+  } catch (err) {
+    if (err.name === 'CastError') {
+      return res.status(400).send({ message: 'Передан некорректный id карточки' });
+    }
+    return res.status(500).send({ message: 'На сервере произошла ошибка' });
+  }
+};
+
+export const removeLike = async (req: CustomRequest, res: Response) => {
+  try {
+    const card = await Card.findByIdAndUpdate(
+      req.params.cardId,
+      { $pull: { likes: req.user?._id } },
+      { new: true },
+    );
+    if (!card) {
+      return res.status(404).send({ message: 'Карточка не найдена' });
+    }
+    return res.send(card);
+  } catch (err) {
+    if (err.name === 'CastError') {
+      return res.status(400).send({ message: 'Передан некорректный id карточки' });
+    }
+    return res.status(500).send({ message: 'На сервере произошла ошибка' });
   }
 };
