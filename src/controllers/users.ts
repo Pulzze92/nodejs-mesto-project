@@ -12,13 +12,15 @@ export const getUsers = async (req: Request, res: Response) => {
 
 export const getUserById = async (req: Request, res: Response) => {
   try {
-    const user = await User.findById({ id: req.params.userId });
+    const user = await User.findById(req.params.userId);
 
-    if (!user) return res.status(404).send({ message: 'Пользователь с таким id не был найден' });
+    if (!user) {
+      return res.status(404).send({ message: 'Пользователь с таким id не был найден' });
+    }
 
-    res.send(user);
+    return res.send(user);
   } catch (err) {
-    res.status(500).send({ message: 'Произошла ошибка' });
+    return res.status(500).send({ message: 'Произошла ошибка' });
   }
 };
 
