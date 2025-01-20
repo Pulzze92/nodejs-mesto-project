@@ -6,6 +6,8 @@ export interface IUser {
   about: string;
   avatar: string;
   _id: Types.ObjectId;
+  email: string;
+  password: string;
 }
 
 export interface ICard {
@@ -21,4 +23,9 @@ export interface CustomRequest extends Request {
   user?: {
     _id: string;
   };
+}
+
+export interface MongooseError extends Error {
+  code?: number;
+  name: string;
 }

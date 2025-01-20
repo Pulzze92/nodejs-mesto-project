@@ -4,6 +4,7 @@ import userRouter from './routes/users';
 import cardRouter from './routes/cards';
 import { CustomRequest } from './types';
 import STATUS_CODES from './utils/constants';
+import auth from './middlewares/auth';
 
 const { PORT = 3000 } = process.env;
 const app = express();
@@ -26,6 +27,8 @@ app.use('/cards', cardRouter);
 app.use((req: Request, res: Response) => {
   res.status(STATUS_CODES.NOT_FOUND).send({ message: 'Запрашиваемый ресурс не найден' });
 });
+
+app.use(auth);
 
 app.listen(PORT, () => {
   // eslint-disable-next-line no-console
