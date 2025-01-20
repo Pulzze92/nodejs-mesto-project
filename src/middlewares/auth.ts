@@ -1,25 +1,20 @@
+import { Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { NextFunction, Request, Response } from 'express';
+import { CustomRequest } from '../types';
+import STATUS_CODES from '../utils/constants';
 
-export default (req: Request, res: Response, next: NextFunction) => {
-  const { authorization } = req.headers;
+export default (req: CustomRequest, res: Response, next: NextFunction) => {
+  const token = req.cookies.jwt;
 
-  if (!authorization || !authorization.startsWith('Bearer ')) {
-    return res
-      .status(401)
-      .send({ message: 'Необходима авторизация' });
+  if (!token) {
+    return res.status(STATUS_CODES.UNAUTHORIZED).send({ message: 'Необходима авторизация' });
   }
-
-  const token = authorization.replace('Bearer ', '');
-  let payload;
 
   try {
-    payload = jwt.verify(token, 'some-secret-key');
+    const payload = jwt.verify(token, 'some-secret-key');
+    req.user = payload as { _id: string };
+    next();
   } catch (err) {
-    return res.status(401).send({ message: 'Необходима авторизация' });
+    return res.status(STATUS_CODES.UNAUTHORIZED).send({ message: 'Необходима авторизация' });
   }
-
-  req.user = payload;
-
-  next();
 };

@@ -118,13 +118,8 @@ export const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findUserByCredentials({ email, password });
     if (!user) {
-      return res.status(STATUS_CODES.UNAUTHORIZED).send({ message: 'Неправильные почта или пароль' });
-    }
-
-    const matched = await bcrypt.compare(password, user.password);
-    if (!matched) {
       return res.status(STATUS_CODES.UNAUTHORIZED).send({ message: 'Неправильные почта или пароль' });
     }
 
@@ -134,7 +129,14 @@ export const login = async (req: Request, res: Response) => {
       { expiresIn: '7d' },
     );
 
-    res.send({ token });
+    res
+      .cookie('jwt', token, {
+        maxAge: 3600000 * 24 * 7,
+        httpOnly: true,
+        sameSite: true,
+        secure: true,
+      })
+      .send({ message: 'Авторизация успешна' });
   } catch (err) {
     res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send({ message: 'На сервере произошла ошибка' });
   }

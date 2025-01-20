@@ -5,11 +5,13 @@ import cardRouter from './routes/cards';
 import { CustomRequest } from './types';
 import STATUS_CODES from './utils/constants';
 import auth from './middlewares/auth';
+import cookieParser from 'cookie-parser';
 
 const { PORT = 3000 } = process.env;
 const app = express();
 
 app.use(express.json());
+app.use(cookieParser());
 
 mongoose.connect('mongodb://localhost:27017/mestodb');
 
