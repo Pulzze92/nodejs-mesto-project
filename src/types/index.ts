@@ -26,6 +26,6 @@ export interface CustomRequest extends Request {
 }
 
 export interface MongooseError extends Error {
-  code?: number;
   name: string;
+  code?: number;
 }

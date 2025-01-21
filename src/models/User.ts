@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
 import isEmail from 'validator/lib/isEmail';
 import { IUser } from '../types';
-import bcrypt from 'bcryptjs';
+
+const urlRegex = /^https?:\/\/(www\.)?[a-zA-Z0-9-._~:/?#[\]@!$&'()*+,;=]+\.[a-zA-Z0-9-._~:/?#[\]@!$&'()*+,;=]+[a-zA-Z0-9-._~:/?#[\]@!$&'()*+,;=#]*$/;
 
 const userSchema = new mongoose.Schema<IUser>({
   name: {
@@ -19,6 +20,10 @@ const userSchema = new mongoose.Schema<IUser>({
   avatar: {
     type: String,
     default: 'https://pictures.s3.yandex.net/resources/jacques-cousteau_1604399756.png',
+    validate: {
+      validator: (v: string) => urlRegex.test(v),
+      message: 'Некорректный формат URL',
+    },
   },
   email: {
     type: String,
@@ -32,6 +37,7 @@ const userSchema = new mongoose.Schema<IUser>({
   password: {
     type: String,
     required: true,
+    select: false,
   },
 }, {
   versionKey: false,
@@ -43,20 +49,4 @@ const userSchema = new mongoose.Schema<IUser>({
   },
 });
 
-userSchema.static('findUserByCredentials', async function findUserByCredentials({ email, password }: { email: string, password: string }) {
-  const user = await this.findOne({ email }).select('+password');
-  if (!user) {
-    return null;
-  }
-  const matched = await bcrypt.compare(password, user.password);
-  if (!matched) {
-    return null;
-  }
-  return user;
-});
-
-interface UserModel extends mongoose.Model<IUser> {
-  findUserByCredentials: (data: { email: string, password: string }) => Promise<IUser | null>;
-}
-
-export default mongoose.model<IUser, UserModel>('user', userSchema);
+export default mongoose.model<IUser>('user', userSchema);

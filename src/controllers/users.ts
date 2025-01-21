@@ -1,38 +1,42 @@
 import bcrypt from 'bcryptjs';
-import { Request, Response } from 'express';
+import { NextFunction, Request, Response } from 'express';
 import { User } from '../models';
 import { CustomRequest } from '../types';
 import STATUS_CODES from '../utils/constants';
 import { MongooseError } from '../types';
 import jwt from 'jsonwebtoken';
+import { BadRequestError, NotFoundError, UnauthorizedError, ConflictError } from '../errors';
 
-export const getUsers = async (req: Request, res: Response) => {
+export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const users = await User.find({});
     res.send(users);
-  } catch (err) {
-    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send({ message: 'На сервере произошла ошибка' });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'CastError') {
+      next(new BadRequestError('Передан некорректный id'));
+      return;
+    }
+    next(err);
   }
 };
 
-export const getUserById = async (req: Request, res: Response) => {
+export const getUserById = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const user = await User.findById(req.params.userId);
     if (!user) {
-      res.status(STATUS_CODES.NOT_FOUND).send({ message: 'Пользователь не найден' });
-      return;
+      throw new NotFoundError('Пользователь не найден');
     }
     res.send(user);
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'CastError') {
-      res.status(STATUS_CODES.BAD_REQUEST).send({ message: 'Передан некорректный id пользователя' });
+      next(new BadRequestError('Передан некорректный id пользователя'));
       return;
     }
-    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send({ message: 'На сервере произошла ошибка' });
+    next(err);
   }
 };
 
-export const createUser = async (req: Request, res: Response) => {
+export const createUser = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const {
       name, about, avatar, email, password,
@@ -58,21 +62,19 @@ export const createUser = async (req: Request, res: Response) => {
 
     res.status(STATUS_CODES.CREATED).send(userResponse);
   } catch (err: unknown) {
-    if (err instanceof Error) {
-      if (err.name === 'ValidationError') {
-        res.status(STATUS_CODES.BAD_REQUEST).send({ message: 'Переданы некорректные данные при создании пользователя' });
-        return;
-      }
-      if ((err as MongooseError).code === 11000) {
-        res.status(STATUS_CODES.BAD_REQUEST).send({ message: 'Пользователь с таким email уже существует' });
-        return;
-      }
+    if (err instanceof Error && err.name === 'ValidationError') {
+      next(new BadRequestError('Переданы некорректные данные'));
+      return;
     }
-    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send({ message: 'На сервере произошла ошибка' });
+    if (err instanceof Error && (err as MongooseError).code === 11000) {
+      next(new ConflictError('Пользователь с таким email уже существует'));
+      return;
+    }
+    next(err);
   }
 };
 
-export const updateProfile = async (req: CustomRequest, res: Response) => {
+export const updateProfile = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
     const { name, about } = req.body;
     const user = await User.findByIdAndUpdate(
@@ -81,20 +83,19 @@ export const updateProfile = async (req: CustomRequest, res: Response) => {
       { new: true, runValidators: true },
     );
     if (!user) {
-      res.status(STATUS_CODES.NOT_FOUND).send({ message: 'Пользователь не найден' });
-      return;
+      throw new NotFoundError('Пользователь не найден');
     }
     res.send(user);
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'ValidationError') {
-      res.status(STATUS_CODES.BAD_REQUEST).send({ message: 'Переданы некорректные данные' });
+      next(new BadRequestError('Переданы некорректные данные'));
       return;
     }
-    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send({ message: 'На сервере произошла ошибка' });
+    next(err);
   }
 };
 
-export const updateAvatar = async (req: CustomRequest, res: Response) => {
+export const updateAvatar = async (req: CustomRequest, res: Response, next: NextFunction) => {
   try {
     const { avatar } = req.body;
     const user = await User.findByIdAndUpdate(
@@ -103,24 +104,30 @@ export const updateAvatar = async (req: CustomRequest, res: Response) => {
       { new: true, runValidators: true },
     );
     if (!user) {
-      return res.status(STATUS_CODES.NOT_FOUND).send({ message: 'Пользователь не найден' });
+      throw new NotFoundError('Пользователь не найден');
     }
-    return res.send(user);
+    res.send(user);
   } catch (err: unknown) {
     if (err instanceof Error && err.name === 'ValidationError') {
-      return res.status(STATUS_CODES.BAD_REQUEST).send({ message: 'Передана некорректная ссылка на аватар' });
+      next(new BadRequestError('Передана некорректная ссылка на аватар'));
+      return;
     }
-    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send({ message: 'На сервере произошла ошибка' });
+    next(err);
   }
 };
 
-export const login = async (req: Request, res: Response) => {
+export const login = async (req: Request, res: Response, next: NextFunction) => {
   const { email, password } = req.body;
 
   try {
-    const user = await User.findUserByCredentials({ email, password });
+    const user = await User.findOne({ email }).select('+password');
     if (!user) {
-      return res.status(STATUS_CODES.UNAUTHORIZED).send({ message: 'Неправильные почта или пароль' });
+      throw new UnauthorizedError('Неправильные почта или пароль');
+    }
+
+    const matched = await bcrypt.compare(password, user.password);
+    if (!matched) {
+      throw new UnauthorizedError('Неправильные почта или пароль');
     }
 
     const token = jwt.sign(
@@ -137,7 +144,27 @@ export const login = async (req: Request, res: Response) => {
         secure: true,
       })
       .send({ message: 'Авторизация успешна' });
-  } catch (err) {
-    res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).send({ message: 'На сервере произошла ошибка' });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'CastError') {
+      next(new BadRequestError('Передан некорректный id'));
+      return;
+    }
+    next(err);
+  }
+};
+
+export const getCurrentUser = async (req: CustomRequest, res: Response, next: NextFunction) => {
+  try {
+    const user = await User.findById(req.user?._id);
+    if (!user) {
+      throw new NotFoundError('Пользователь не найден');
+    }
+    res.send(user);
+  } catch (err: unknown) {
+    if (err instanceof Error && err.name === 'CastError') {
+      next(new BadRequestError('Передан некорректный id'));
+      return;
+    }
+    next(err);
   }
 };
