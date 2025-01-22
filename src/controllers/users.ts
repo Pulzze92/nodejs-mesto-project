@@ -144,11 +144,7 @@ export const login = async (req: Request, res: Response, next: NextFunction) => 
         secure: true,
       })
       .send({ message: 'Авторизация успешна' });
-  } catch (err: unknown) {
-    if (err instanceof Error && err.name === 'CastError') {
-      next(new BadRequestError('Передан некорректный id'));
-      return;
-    }
+  } catch (err) {
     next(err);
   }
 };
